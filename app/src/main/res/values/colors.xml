@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="white">#FFFFFF</color>
+    <color name="background_color">#F0F0F5</color> <!-- Light background color -->
+    <color name="primary_color">#4A2C91</color> <!-- Primary UI color -->
+    <color name="secondary_color">#6F5F9E</color> <!-- Secondary elements color -->
+    <color name="text_color">#333333</color> <!-- Text color -->
+    <color name="button_color">#4A2C91</color> <!-- Button background color -->
+    <color name="black">#000000</color> <!-- Button text color -->
+    <color name="highlight_color">#AFA4CC</color> <!-- Highlight elements color -->
+</resources>
