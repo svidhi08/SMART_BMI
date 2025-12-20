@@ -1,100 +1,122 @@
 package com.example.smartbmi;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
-
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.util.ArrayList;
+import java.util.Locale;
 
 public class BMICalculationActivity extends AppCompatActivity {
-    private EditText ageInput, weightInput;
-    private SeekBar heightInput;
-    private TextView heightDisplay;
-    private RadioGroup genderGroup;
-    private Button calculateButton;
 
-    private int selectedHeight = 0;
-    int minHeight = 50;
-
+    private EditText etAge, etWeight;
+    private SeekBar heightSeekBar;
+    private TextView tvHeightValue, btnHistory;
+    private Button btnCalculate;
+    private int currentHeight = 157;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_bmicalculation);
-        ageInput = findViewById(R.id.ageInput);
-        weightInput = findViewById(R.id.weightInput);
-        heightInput = findViewById(R.id.heightInput);
-        heightDisplay = findViewById(R.id.heightDisplay);
-        genderGroup = findViewById(R.id.genderGroup);
-        calculateButton = findViewById(R.id.calculateButton);
-        heightInput.setMax(300);
-        heightInput.setMin(minHeight);
-        selectedHeight = minHeight;
 
-        heightDisplay.setText(selectedHeight + " CM");
-        heightInput.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        etAge = findViewById(R.id.etAge);
+        etWeight = findViewById(R.id.etWeight);
+        heightSeekBar = findViewById(R.id.heightSeekBar);
+        tvHeightValue = findViewById(R.id.tvHeightValue);
+        btnCalculate = findViewById(R.id.btnCalculate);
+        btnHistory = findViewById(R.id.btnHistory);
+
+        loadLastSession();
+
+        heightSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                selectedHeight = progress;
-                heightDisplay.setText(progress + " CM");
+                currentHeight = progress;
+                tvHeightValue.setText(progress + " CM");
             }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        calculateButton.setOnClickListener(v -> {
-            String ageStr = ageInput.getText().toString().trim();
-            String weightStr = weightInput.getText().toString().trim();
-            int selectedGenderId = genderGroup.getCheckedRadioButtonId();
+        btnCalculate.setOnClickListener(v -> performCalculation());
+        btnHistory.setOnClickListener(v -> showHistory());
+    }
 
-            if (TextUtils.isEmpty(ageStr)) {
-                Toast.makeText(this, "Please enter age", Toast.LENGTH_SHORT).show();
-                return;
-            }
+    private void performCalculation() {
+        String weightStr = etWeight.getText().toString();
+        String ageStr = etAge.getText().toString();
 
-            if (TextUtils.isEmpty(weightStr)) {
-                Toast.makeText(this, "Please enter weight", Toast.LENGTH_SHORT).show();
-                return;
-            }
+        if (weightStr.isEmpty() || ageStr.isEmpty()) {
+            Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-            if (selectedHeight == 0) {
-                Toast.makeText(this, "Please select height", Toast.LENGTH_SHORT).show();
-                return;
-            }
+        float weight = Float.parseFloat(weightStr);
+        float heightM = currentHeight / 100.0f;
+        float bmi = weight / (heightM * heightM);
 
-            if (selectedGenderId == -1) {
-                Toast.makeText(this, "Please select gender", Toast.LENGTH_SHORT).show();
-                return;
-            }
+        // Save inputs so the user doesn't have to re-type next time
+        saveSession(ageStr, weightStr, currentHeight);
 
-            int age = Integer.parseInt(ageStr);
-            int weight = Integer.parseInt(weightStr);
-            float heightInMeters = selectedHeight / 100f;
+        // Launch ResultActivity - WE DO NOT SAVE TO HISTORY HERE ANYMORE
+        Intent intent = new Intent(this, ResultActivity.class);
+        intent.putExtra("BMI", bmi);
+        intent.putExtra("HEIGHT", currentHeight);
+        intent.putExtra("WEIGHT", (int) weight);
+        intent.putExtra("AGE", Integer.parseInt(ageStr));
+        intent.putExtra("GENDER", "Not Specified");
+        startActivity(intent);
+    }
 
-            float bmi = weight / (heightInMeters * heightInMeters);
+    private void saveSession(String a, String w, int h) {
+        getSharedPreferences("BMI_STORE", MODE_PRIVATE).edit()
+                .putString("age", a).putString("weight", w).putInt("height", h).apply();
+    }
 
-            RadioButton selectedGender = findViewById(selectedGenderId);
-            String gender = selectedGender.getText().toString();
+    private void loadLastSession() {
+        SharedPreferences p = getSharedPreferences("BMI_STORE", MODE_PRIVATE);
+        etAge.setText(p.getString("age", ""));
+        etWeight.setText(p.getString("weight", ""));
+        currentHeight = p.getInt("height", 157);
+        heightSeekBar.setProgress(currentHeight);
+        tvHeightValue.setText(currentHeight + " CM");
+    }
 
-            // Pass data to result screen
-            Intent intent = new Intent(BMICalculationActivity.this, ResultActivity.class);
-            intent.putExtra("BMI", bmi);
-            intent.putExtra("GENDER", gender);
-            intent.putExtra("AGE", age);
-            intent.putExtra("HEIGHT",selectedHeight);
-            intent.putExtra("WEIGHT",weight);
-            startActivity(intent);
-        });
+    private void showHistory() {
+        SharedPreferences p = getSharedPreferences("BMI_STORE", MODE_PRIVATE);
+        ArrayList<BmiHistoryItem> list = new Gson().fromJson(p.getString("h_list", ""),
+                new TypeToken<ArrayList<BmiHistoryItem>>(){}.getType());
+
+        if (list == null || list.isEmpty()) {
+            Toast.makeText(this, "No history found yet!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        android.view.View dialogView = getLayoutInflater().inflate(R.layout.dialog_history, null);
+        TextView content = dialogView.findViewById(R.id.historyContent);
+        Button closeBtn = dialogView.findViewById(R.id.btnCloseHistory);
+
+        StringBuilder sb = new StringBuilder();
+        for (BmiHistoryItem i : list) {
+            sb.append(i.getDisplayString()).append("\n");
+            sb.append("────────────────────\n");
+        }
+        content.setText(sb.toString());
+
+        AlertDialog dialog = new AlertDialog.Builder(this).setView(dialogView).create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        closeBtn.setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
     }
 }

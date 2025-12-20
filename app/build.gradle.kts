@@ -37,6 +37,7 @@ dependencies {
     annotationProcessor(libs.glide.compiler)
     implementation(libs.appcompat)
     implementation(libs.material)
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation(libs.activity)
     implementation(libs.constraintlayout)
     testImplementation(libs.junit)
