@@ -58,8 +58,9 @@ public class ResultActivity extends AppCompatActivity {
         String category = getBmiCategory(bmi);
         BmiHistoryItem newItem = new BmiHistoryItem(date, String.format("%.1f", bmi), category);
 
-        // 3. Logic to keep only TOP 5
         historyList.add(0, newItem); // Add new result at the top (index 0)
+
+        // 3. Logic to keep only TOP 5
 
         if (historyList.size() > 5) {
             historyList.remove(5); // Remove the 6th item if it exists
